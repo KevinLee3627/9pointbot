@@ -1,17 +1,13 @@
 const { RefreshableAuthProvider, StaticAuthProvider } = require('twitch-auth');
 const { ChatClient } = require('twitch-chat-client');
-const { promises: fs } = require('fs');
+const { promises: fs, readFileSync, readFile } = require('fs');
+const { Sheet, Range } = require('google-sheets-simple');
 
 require('dotenv').config();
 
-
-// Getting oauth token (client credentials)
-
-
-
-async function main() {
+async function twitchAuthProvider() {
 	const tokenData = JSON.parse(await fs.readFile('./tokens.json'));
-	const authProvider = new RefreshableAuthProvider(
+	return new RefreshableAuthProvider(
 		new StaticAuthProvider(process.env.CLIENT_ID, tokenData.accessToken),
 		{
 			clientSecret: process.env.CLIENT_SECRET,
@@ -23,28 +19,51 @@ async function main() {
 					refreshToken,
 					expiryTimestamp: expiryDate === null ? null : expiryDate.getTime()
 				};
-				await fs.writeFile('./tokens.json', JSON.stringify(newTokenData, null, 4), 'UTF-8')				
+				await fs.writeFile('./tokens.json', JSON.stringify(newTokenData, null, 4), 'UTF-8');
+				console.log('NEW TOKENS WRITTEN TO tokens.json');
 			}
 		}
 	)
-	const chatClient = new ChatClient(authProvider, { channels: ['Granttank'] });
+}
+
+function convertSheetDataToObj(sheetData) {
+	// sheetData is a 2D array
+	return new Map(sheetData.map( ([user, data]) => [user, data] ))
+}
+
+async function getPointsData(sheet) {
+	// To access directly with [0][0], must wrap await in parens
+	const data_range = (await sheet.get('pointsData', 'ROWS'))[0][0]; 
+	const data = await sheet.get(data_range, 'ROWS');
+	return [convertSheetDataToObj(data), data_range];
+}
+
+async function updatePointsData(user, sheet, pointsData, pointsDataRange) {
+	let currentUserPoints = pointsData.get(user);
+	pointsData.set(user, Number(currentUserPoints) + 500);
+	let updatedPointsData = [...pointsData.entries()]
+	sheet.save(pointsDataRange, updatedPointsData, 'ROWS');
+}
+
+async function main() {
+	// Initialize google sheets instance
+	const sheet = new Sheet(process.env.GOOGLE_SHEET_ID);
+	const misc = await sheet.initialise();
+	const [pointsData, pointsDataRange] = await getPointsData(sheet);
+	console.log(pointsData);
+
+
+	const chatClient = new ChatClient(await twitchAuthProvider(), { channels: ['Granttank'] });
+	// Initialize commands
+	chatClient.commands = {}
+	
 	await chatClient.connect();
 	chatClient.onMessage((channel, user, msg) => {
-		console.log(msg);
-		if (msg === '!points') {
-			chatClient.say(channel, `go to https://www.google.com`)
-		}
+		const date = new Date();
+		console.log(`[${date.toLocaleDateString()} ${date.toLocaleTimeString()}] ${user}: ${msg}`);
+
+
+		updatePointsData(user, sheet, pointsData, pointsDataRange);
 	})
 }
 main();
-
-// {
-// 	"access_token": "ck7dep8e7urmoqmzjqg89tykjc1kgy",
-// 	"expires_in": 14207,
-// 	"refresh_token": "nkg725hg8mk808id6wq335psy4wlx7ish97n4i7bmjymi6m8nr",
-// 	"scope": [
-// 			"chat:edit",
-// 			"chat:read"
-// 	],
-// 	"token_type": "bearer"
-// }

@@ -1,3 +1,5 @@
 /node_modules
 .env
 tokens.json
+sheets_cred.json
+sheets.pem
