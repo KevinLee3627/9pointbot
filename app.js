@@ -1,69 +1,60 @@
-const { RefreshableAuthProvider, StaticAuthProvider } = require('twitch-auth');
+const { ApiClient } = require('twitch')
+const twitchAuthProvider = require('./util/twitchAuth.js');
 const { ChatClient } = require('twitch-chat-client');
-const { promises: fs, readFileSync, readFile } = require('fs');
 const { Sheet, Range } = require('google-sheets-simple');
+const { getPointsData, updatePointsData } = require('./util/points.js')
 
 require('dotenv').config();
 
-async function twitchAuthProvider() {
-	const tokenData = JSON.parse(await fs.readFile('./tokens.json'));
-	return new RefreshableAuthProvider(
-		new StaticAuthProvider(process.env.CLIENT_ID, tokenData.accessToken),
-		{
-			clientSecret: process.env.CLIENT_SECRET,
-			refreshToken: tokenData.refreshToken,
-			expiry: tokenData.expiryTimestamp === null ? null : new Date(tokenData.expiryTimestamp),
-			onRefresh: async ({ accessToken, refreshToken, expiryDate}) => {
-				const newTokenData = {
-					accessToken,
-					refreshToken,
-					expiryTimestamp: expiryDate === null ? null : expiryDate.getTime()
-				};
-				await fs.writeFile('./tokens.json', JSON.stringify(newTokenData, null, 4), 'UTF-8');
-				console.log('NEW TOKENS WRITTEN TO tokens.json');
-			}
+async function isStreamLive(apiClient, userName) {
+	try {
+		const streamData = await apiClient.helix.streams.getStreamByUserName(userName);
+		console.log(`${userName}'s stream started at ${streamData.startDate}`)
+		return streamData.startDate;
+	} catch (err) {
+		if (err instanceof TypeError) {
+			console.log(`${userName}'s stream is not live!`)
+			return false;
 		}
-	)
-}
-
-function convertSheetDataToObj(sheetData) {
-	// sheetData is a 2D array
-	return new Map(sheetData.map( ([user, data]) => [user, data] ))
-}
-
-async function getPointsData(sheet) {
-	// To access directly with [0][0], must wrap await in parens
-	const data_range = (await sheet.get('pointsData', 'ROWS'))[0][0]; 
-	const data = await sheet.get(data_range, 'ROWS');
-	return [convertSheetDataToObj(data), data_range];
-}
-
-async function updatePointsData(user, sheet, pointsData, pointsDataRange) {
-	let currentUserPoints = pointsData.get(user);
-	pointsData.set(user, Number(currentUserPoints) + 500);
-	let updatedPointsData = [...pointsData.entries()]
-	sheet.save(pointsDataRange, updatedPointsData, 'ROWS');
+	}
 }
 
 async function main() {
 	// Initialize google sheets instance
 	const sheet = new Sheet(process.env.GOOGLE_SHEET_ID);
 	const misc = await sheet.initialise();
-	const [pointsData, pointsDataRange] = await getPointsData(sheet);
+	let [pointsData, pointsDataRange] = await getPointsData(sheet);
 	console.log(pointsData);
 
+	
+	const twitchAuth = await twitchAuthProvider();
+	// Initilize twitch API client
+	const twitchApiClient = new ApiClient({ authProvider: twitchAuth });
 
-	const chatClient = new ChatClient(await twitchAuthProvider(), { channels: ['Granttank'] });
+	//TODO: how the hell do i only give points ONCE per stream?
+		//just disconnect the chatClient once stream is over? maybe i need to set up the eventlistener anyways...
+	// setInterval(() => {
+	// 	// Twitch PubSub doesn't tell you if a streamer goes online, too lazy to set up event subscriptions
+	// 	isStreamLive(twitchApiClient, '9hournap');
+	// }, 10000)
+
+	// Initialize twitch CHAT client
+	const chatClient = new ChatClient(twitchAuth, { channels: ['Granttank', '9hournap'] });
 	// Initialize commands
 	chatClient.commands = {}
 	
+
 	await chatClient.connect();
-	chatClient.onMessage((channel, user, msg) => {
+	chatClient.onMessage(async (channel, user, msg) => {
 		const date = new Date();
-		console.log(`[${date.toLocaleDateString()} ${date.toLocaleTimeString()}] ${user}: ${msg}`);
+		console.log(`[${date.toLocaleDateString()} ${date.toLocaleTimeString()}]:[${channel}] ${user}: ${msg}`);
+		
+		if (!pointsData.has(user)) {
+			pointsDataRange = pointsDataRange.slice(0,-1) + String(pointsData.size+2); //+1 for header, +1 for extending another row
+		}
+		pointsData = await updatePointsData(user, sheet, pointsData, pointsDataRange);
 
-
-		updatePointsData(user, sheet, pointsData, pointsDataRange);
+		//
 	})
 }
 main();
