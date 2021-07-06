@@ -11,14 +11,18 @@ const { getAllFollowers } = require ('./lib/getFollowers.js');
 require('dotenv').config();
 //in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f "keyFile", make sure path matches /security/sheets_cred.json
 
-const shouldIgnore = (user) => ['9pointbot', 'nightbot', '9hournap'].includes(user);
-
+const shouldIgnore = (user) => ['9pointbot', 'nightbot', '9hournap', 'wizebot'].includes(user);
+const logger = msg => {
+	const date = new Date();
+	console.log(`[${date.toLocaleDateString()} ${date.toLocaleTimeString()}] ${msg}`);
+}
 async function main() {
+	logger('Starting bot.');
 	// Initialize google sheets instance
 	const sheet = new Sheet(process.env.GOOGLE_SHEET_ID);
 	await sheet.initialise();
 	let [pointsData, pointsDataRange] = await getPointsData(sheet);
-	console.log(pointsData);
+	logger(`Points data retrieved.`);
 
 	//Set up twitch stuff (auth, api clients, eventsub listneer)
 	const twitchOAuth = await twitchRefreshableAuthProvider();
@@ -26,17 +30,16 @@ async function main() {
 	const twitchApiClient = new ApiClient({ authProvider: twitchClientCredentialsAuth });
 	// TODO: How to rewrite code so listener will be reassigned after 
 	const listener = new EventSubListener(twitchApiClient, new NgrokAdapter(), process.env.TWITCH_EVENTSUB_LISTENER_SECRET);
+	await listener.listen();
 	const userData = await twitchApiClient.helix.users.getUserByName('9hournap');
 	const streamerId = userData.id;
 	
-
 	// Ensures that we don't hit the subscription cap
 	await twitchApiClient.helix.eventSub.deleteAllSubscriptions();
 
-	const chatClient = new ChatClient(twitchOAuth, { channels: ['9hournap', 'granttank'] });
-	await chatClient.connect(); //REMOVE IN PRODUCTION
+	const chatClient = new ChatClient(twitchOAuth, { channels: ['9hournap'] });
+	// await chatClient.connect(); //REMOVE IN PRODUCTION
 	chatClient.followers = (await getAllFollowers(streamerId)).map(follower => follower.user.name);
-	// chatClient.followers.forEach(f => console.log(f))
 	chatClient.commands = {}
 	chatClient.streamPointsReceived = [];
 	chatClient.usersThatGambled= [];
@@ -58,10 +61,9 @@ async function main() {
 			return;
 		}
 
-		const date = new Date();
 		const isFollowing = chatClient.followers.includes(username);
 		const receivedPassivePoints = chatClient.streamPointsReceived.includes(username);
-		console.log(`[${date.toLocaleDateString()} ${date.toLocaleTimeString()}]:[${channel}] [Following: ${isFollowing} | Received Points: ${receivedPassivePoints}] ${username}: ${msg}`);
+		logger(`[${channel}] [Following: ${isFollowing} | Received Points: ${receivedPassivePoints}] ${username}: ${msg}`);
 		if (isFollowing && !receivedPassivePoints) {
 			// Adds new users to data object if they have never gotten points before
 			if (!pointsData.has(username)) {
@@ -74,17 +76,24 @@ async function main() {
 	});
 
 	const onlineSubscription = await listener.subscribeToStreamOnlineEvents(streamerId, async e => {
-
-		const date = new Date();
-		console.log(`[${date.toLocaleDateString()} ${date.toLocaleTimeString()}] ${e.broadcasterDisplayName} just went live!`);
-		await listener.listen();
+		logger(`${e.broadcasterDisplayName} just went live!`)
 		await chatClient.connect();
 		chatClient.say(e.broadcasterName, `9pointbot is up and ready for service!`)
-		console.log('Bot connected to chat!');
+		logger('Bot connected to chat!');
 	});
 	
+	const offlineSubscription = await listener.subscribeToStreamOfflineEvents(streamerId, async e => {
+		logger(`${e.broadcasterDisplayName} just went offline`);
+		logger(`Users who have received points for the day: ${chatClient.streamPointsReceived}`);
+		await chatClient.quit();
+		await listener.unlisten();
+		logger('Bot disconnected from chat');
+		process.exit(0);
+	});
+
 	const userFollowSubscription = await listener.subscribeToChannelFollowEvents(streamerId, async e => {
 		username = e.userName.toLowerCase();
+		logger(`${username} has followed.`);
 		chatClient.followers.push(username);
 		// Log name to permanent follow log - users should only get points for following ONCE.
 		// Check if follower has followed before (name exists in followers.log)
@@ -102,21 +111,12 @@ async function main() {
 			if (!pointsData.has(username)) pointsDataRange = pointsDataRange.slice(0, -1) + String(pointsData.size+2)
 			pointsData = await updatePointsData(username, sheet, pointsData, pointsDataRange, chatClient.pointsRewards.follow);
 			chatClient.say(e.broadcasterName, `!points ${username} can now start earning channel points. +500 for follow.`);
-			console.log(`Gave ${username} ${chatClient.pointsRewards.follow} points for following!`);
+			logger(`Gave ${username} ${chatClient.pointsRewards.follow} points for following!`);
 		} else {
 			// User has already followed before!
-			console.log(`${username} has already followed before. No points awarded.`);
+			logger(`${username} has already followed before. No points awarded.`);
 		}
-		// How to track people who have followed?
 	})
-
-	const offlineSubscription = await listener.subscribeToStreamOfflineEvents(streamerId, async e => {
-		console.log(`${e.broadcasterDisplayName} just went offline`);
-		console.log(`Users who have received points for the day: ${chatClient.streamPointsReceived}`);
-		await chatClient.quit();
-		await listener.unlisten();
-		console.log('Bot disconnected from chat');
-	});
 
 }
 main();
