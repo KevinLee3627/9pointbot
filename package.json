@@ -18,6 +18,8 @@
     "twitch": "^4.6.0",
     "twitch-auth": "^4.6.0",
     "twitch-chat-client": "^4.6.0",
-    "twitch-eventsub": "^4.6.0"
+    "twitch-eventsub": "^4.6.0",
+    "twitch-eventsub-ngrok": "^4.6.0",
+    "winston": "^3.3.3"
   }
 }

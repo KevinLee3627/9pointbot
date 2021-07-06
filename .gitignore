@@ -1,5 +1,6 @@
 /node_modules
 .env
+/security
+.DS_Store
+stuff.todo
 tokens.json
-sheets_cred.json
-sheets.pem
