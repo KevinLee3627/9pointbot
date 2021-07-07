@@ -2,20 +2,31 @@ const fs = require('fs');
 const { ApiClient } = require('twitch');
 const { twitchRefreshableAuthProvider, twitchClientCredentialsAuthProvider } = require('./lib/twitchAuth.js');
 const { ChatClient } = require('twitch-chat-client');
-const { EventSubListener, DirectConnectionAdapter } = require('twitch-eventsub');
+const { EventSubListener } = require('twitch-eventsub');
 const { NgrokAdapter } = require('twitch-eventsub-ngrok');
-const { Sheet, Range } = require('google-sheets-simple');
+const { Sheet } = require('google-sheets-simple');
 const { getPointsData, updatePointsData } = require('./lib/pointsHandlers.js');
 const { getAllFollowers } = require ('./lib/getFollowers.js');
-
+const logger = require('./lib/logger.js');
+const mongo = require('./mongo/connection.js');
 require('dotenv').config();
 //in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f "keyFile", make sure path matches /security/sheets_cred.json
 
-const shouldIgnore = (user) => ['9pointbot', 'nightbot', '9hournap', 'wizebot'].includes(user);
-const logger = msg => {
-	const date = new Date();
-	console.log(`[${date.toLocaleDateString()} ${date.toLocaleTimeString()}] ${msg}`);
+const MODE = process.env.MODE;
+
+
+async function init() {
+	await mongo.connect();
+	const db = mongo.db;
+	console.log(db);
+	db.on('error', console.error.bind(console, 'connection error:'));
+	db.once('open', () => {
+
+	})
+	// console.log(mongoDB);
 }
+init();
+const shouldIgnore = (user) => ['9pointbot', 'nightbot', '9hournap', 'wizebot'].includes(user);
 async function main() {
 	logger('Starting bot.');
 	// Initialize google sheets instance
@@ -31,15 +42,15 @@ async function main() {
 	// TODO: How to rewrite code so listener will be reassigned after 
 	const listener = new EventSubListener(twitchApiClient, new NgrokAdapter(), process.env.TWITCH_EVENTSUB_LISTENER_SECRET);
 	await listener.listen();
-	const userData = await twitchApiClient.helix.users.getUserByName('9hournap');
-	const streamerId = userData.id;
+	const userData = await twitchApiClient.helix.users.getUserByName('granttank');
+	const broadcasterId = userData.id;
 	
 	// Ensures that we don't hit the subscription cap
 	await twitchApiClient.helix.eventSub.deleteAllSubscriptions();
 
-	const chatClient = new ChatClient(twitchOAuth, { channels: ['9hournap'] });
-	// await chatClient.connect(); //REMOVE IN PRODUCTION
-	chatClient.followers = (await getAllFollowers(streamerId)).map(follower => follower.user.name);
+	const chatClient = new ChatClient(twitchOAuth, { channels: ['granttank'] });
+	await chatClient.connect(); //REMOVE IN PRODUCTION
+	chatClient.followers = (await getAllFollowers(broadcasterId)).map(follower => follower.user.name);
 	chatClient.commands = {}
 	chatClient.streamPointsReceived = [];
 	chatClient.usersThatGambled= [];
@@ -75,14 +86,14 @@ async function main() {
 		}
 	});
 
-	const onlineSubscription = await listener.subscribeToStreamOnlineEvents(streamerId, async e => {
+	const onlineSubscription = await listener.subscribeToStreamOnlineEvents(broadcasterId, async e => {
 		logger(`${e.broadcasterDisplayName} just went live!`)
 		await chatClient.connect();
 		chatClient.say(e.broadcasterName, `9pointbot is up and ready for service!`)
 		logger('Bot connected to chat!');
 	});
 	
-	const offlineSubscription = await listener.subscribeToStreamOfflineEvents(streamerId, async e => {
+	const offlineSubscription = await listener.subscribeToStreamOfflineEvents(broadcasterId, async e => {
 		logger(`${e.broadcasterDisplayName} just went offline`);
 		logger(`Users who have received points for the day: ${chatClient.streamPointsReceived}`);
 		await chatClient.quit();
@@ -91,7 +102,7 @@ async function main() {
 		process.exit(0);
 	});
 
-	const userFollowSubscription = await listener.subscribeToChannelFollowEvents(streamerId, async e => {
+	const userFollowSubscription = await listener.subscribeToChannelFollowEvents(broadcasterId, async e => {
 		username = e.userName.toLowerCase();
 		logger(`${username} has followed.`);
 		chatClient.followers.push(username);
@@ -119,4 +130,4 @@ async function main() {
 	})
 
 }
-main();
+// main();
