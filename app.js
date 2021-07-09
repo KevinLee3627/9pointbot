@@ -8,24 +8,19 @@ const { Sheet } = require('google-sheets-simple');
 const { getPointsData, updatePointsData } = require('./lib/pointsHandlers.js');
 const { getAllFollowers } = require ('./lib/getFollowers.js');
 const logger = require('./lib/logger.js');
-const mongo = require('./mongo/connection.js');
+const mongo = require('./mongo/mongo.js');
 require('dotenv').config();
 //in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f "keyFile", make sure path matches /security/sheets_cred.json
 
-const MODE = process.env.MODE;
-
-
 async function init() {
 	await mongo.connect();
-	const db = mongo.db;
-	console.log(db);
-	db.on('error', console.error.bind(console, 'connection error:'));
-	db.once('open', () => {
-
-	})
-	// console.log(mongoDB);
+	await mongo.updateUserTimestamp('granttank')
+	await mongo.updateUserPoints('granttank', 1);
+	await mongo.disconnect();
+	return;
 }
 init();
+
 const shouldIgnore = (user) => ['9pointbot', 'nightbot', '9hournap', 'wizebot'].includes(user);
 async function main() {
 	logger('Starting bot.');
@@ -37,17 +32,17 @@ async function main() {
 
 	//Set up twitch stuff (auth, api clients, eventsub listneer)
 	const twitchOAuth = await twitchRefreshableAuthProvider();
-	const twitchClientCredentialsAuth = await twitchClientCredentialsAuthProvider();
+	const twitchClientCredentialsAuth = twitchClientCredentialsAuthProvider();
 	const twitchApiClient = new ApiClient({ authProvider: twitchClientCredentialsAuth });
-	// TODO: How to rewrite code so listener will be reassigned after 
 	const listener = new EventSubListener(twitchApiClient, new NgrokAdapter(), process.env.TWITCH_EVENTSUB_LISTENER_SECRET);
 	await listener.listen();
-	const userData = await twitchApiClient.helix.users.getUserByName('granttank');
-	const broadcasterId = userData.id;
-	
+	// const userData = await twitchApiClient.helix.users.getUserByName('granttank');
+	// const broadcasterId = userData.id;
+	// console.log(broadcasterId);
 	// Ensures that we don't hit the subscription cap
 	await twitchApiClient.helix.eventSub.deleteAllSubscriptions();
 
+	logger(`Beginning chatclient setup`)
 	const chatClient = new ChatClient(twitchOAuth, { channels: ['granttank'] });
 	await chatClient.connect(); //REMOVE IN PRODUCTION
 	chatClient.followers = (await getAllFollowers(broadcasterId)).map(follower => follower.user.name);
@@ -58,23 +53,23 @@ async function main() {
 		'firstMessage': 500,
 		'follow': 500
 	}
+	
 	chatClient.onMessage(async (channel, username, msg, fullMsg) => {
 		username = fullMsg.userInfo.userName.toLowerCase(); //everything should be done in lowercase to be careful
 
-		if (shouldIgnore(username)) return; //bot should ignore itself
+		if (shouldIgnore(username)) return;
 
 		if (msg === '!bot') {
-			chatClient.say(channel, '9pointbot automatically distributes points for talking (once per stream) and following (once per life). Made by Granttank, DM him or bug the streamer to bug me if there are any issues. Currently a work in progress!');
-			return;
+			return chatClient.say(channel, '9pointbot automatically distributes points for talking (once per stream) and following (once per life). Made by Granttank, DM him or bug the streamer to bug me if there are any issues. Currently a work in progress!');
 		}
 		if (msg === '!granttank') {
-			chatClient.say(channel, 'EZ the streamer won\'t take your money, but I will! venmo: kevinnivekkevin');
-			return;
+			return chatClient.say(channel, 'EZ the streamer won\'t take your money, but I will! venmo: kevinnivekkevin');
 		}
 
 		const isFollowing = chatClient.followers.includes(username);
 		const receivedPassivePoints = chatClient.streamPointsReceived.includes(username);
 		logger(`[${channel}] [Following: ${isFollowing} | Received Points: ${receivedPassivePoints}] ${username}: ${msg}`);
+
 		if (isFollowing && !receivedPassivePoints) {
 			// Adds new users to data object if they have never gotten points before
 			if (!pointsData.has(username)) {
@@ -85,10 +80,9 @@ async function main() {
 			chatClient.say(channel, `${username} +500 passive points earned for this stream`);
 		}
 	});
-
 	const onlineSubscription = await listener.subscribeToStreamOnlineEvents(broadcasterId, async e => {
 		logger(`${e.broadcasterDisplayName} just went live!`)
-		await chatClient.connect();
+		// await chatClient.connect();
 		chatClient.say(e.broadcasterName, `9pointbot is up and ready for service!`)
 		logger('Bot connected to chat!');
 	});
@@ -128,6 +122,20 @@ async function main() {
 			logger(`${username} has already followed before. No points awarded.`);
 		}
 	})
+
+	const userFollowSubscription2 = await listener.subscribeToChannelFollowEvents(broadcasterId, async (e) => {
+		username = e.userName.toLowerCase();
+		logger(`${username} has followed.`);
+		// On follow, create a user document in the DB
+		mongo.createUser(username);
+	})
+
+	process.on('SIGINT', () => {
+		chatClient.quit();
+		listener.unlisten();
+		logger('Ctrl-C detected');
+		process.exit(0);
+	});
 
 }
 // main();

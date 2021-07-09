@@ -1,6 +1,8 @@
-/node_modules
-.env
-/security
 .DS_Store
-stuff.todo
+/node_modules
+/security
+
+*.env
 tokens.json
+
+stuff.todo
