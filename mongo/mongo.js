@@ -116,6 +116,9 @@ class Mongo {
 			console.log(user);
 		})
 	}
-
 }
-module.exports = new Mongo();
+
+const mongo = new Mongo();
+mongo.connect();
+
+module.exports = mongo;
