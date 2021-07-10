@@ -39,11 +39,14 @@ class Mongo {
 	}
 
 	/**
-	 * String
+	 * // TODO: finish this function
 	 * @param {String} test 
 	 */
 	async updateFollowingStatus(test) {
-
+		// Run getAllFollowers - look through DB to see which users are missing from
+		// the getAllFollowers username array. If the username is not in the DB anymore,
+		// Change the isFollowing status to false.
+		// Log everyone who has had their status change
 	}
 
 	/**
@@ -92,6 +95,19 @@ class Mongo {
 		await User.updateOne(filter, update, (err, res) => {
 			if (err) return console.error(err);
 		});
+	}
+
+	/**
+	 * Toggles user's isFollowing status.
+	 * @param {String} username 
+	 */
+	async updateUserFollowingStatus(username) {
+		const filter = { username };
+		const result = await User.findOne(filter).exec();
+		const update = { isFollowing: !result.isFollowing };
+		await User.updateOne(filter, update, (err, res) => {
+			if (err) return console.error(err);
+		})
 	}
 
 	async getUser(username) {

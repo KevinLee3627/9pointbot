@@ -5,7 +5,7 @@ const { ChatClient } = require('twitch-chat-client');
 const { EventSubListener } = require('twitch-eventsub');
 const { NgrokAdapter } = require('twitch-eventsub-ngrok');
 const { Sheet } = require('google-sheets-simple');
-const { getPointsData, updatePointsData } = require('./lib/pointsHandlers.js');
+const { getPointsData, updatePointsData } = require('./lib/googleSheets.js');
 const { getAllFollowers } = require ('./lib/getFollowers.js');
 const logger = require('./lib/logger.js');
 const mongo = require('./mongo/mongo.js');
@@ -14,7 +14,6 @@ require('dotenv').config();
 
 async function init() {
 	await mongo.connect();
-	await mongo.updateUserTimestamp('granttank')
 	await mongo.updateUserPoints('granttank', 1);
 	await mongo.disconnect();
 	return;
@@ -48,7 +47,7 @@ async function main() {
 	chatClient.followers = (await getAllFollowers(broadcasterId)).map(follower => follower.user.name);
 	chatClient.commands = {}
 	chatClient.streamPointsReceived = [];
-	chatClient.usersThatGambled= [];
+	chatClient.usersThatGambled = [];
 	chatClient.pointsRewards = {
 		'firstMessage': 500,
 		'follow': 500
@@ -126,7 +125,7 @@ async function main() {
 	const userFollowSubscription2 = await listener.subscribeToChannelFollowEvents(broadcasterId, async (e) => {
 		username = e.userName.toLowerCase();
 		logger(`${username} has followed.`);
-		// On follow, create a user document in the DB
+		// On follow, create a user document in the DB with config.followPoints points.
 		mongo.createUser(username);
 	})
 
