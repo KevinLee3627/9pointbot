@@ -16,7 +16,7 @@ module.exports = {
 		if (args.length == 2) {
 			const [username, points] = args;
 			const user = await mongo.getUser(username);
-			if (!user) return chatClient.say(broadcaster.name, `User does not exist`)
+			if (!user) return chatClient.say(broadcaster.name, `User ${username} does not exist`)
 			if (!isNumeric(points)) return chatClient.say(broadcaster.name, `Second argument should be a number.`);
 			await mongo.updateUserPoints(username, points);
 			chatClient.say(broadcaster.name, `${username} now has ${points} points.`);
