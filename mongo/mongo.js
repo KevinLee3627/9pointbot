@@ -75,10 +75,10 @@ class Mongo {
 	 * @param {String} username Username of user that will be updated
 	 * @param {Number} pointsDelta Integer value of points given/taken
 	 */
-	async updateUserPoints(username, pointsDelta) {
-		logger('Updating points for '+username)
-		const query = { username: username };
-		const update = { $inc: { points: pointsDelta } };
+	async updateUserPoints(username, points) {
+		logger('Updating points for '+username);
+		const query = { username };
+		const update = { points };
 		const options = { new: true }
 		await User.findOneAndUpdate(query, update, options, (err, user) => {
 			if (err) return console.error(err);
@@ -111,10 +111,7 @@ class Mongo {
 	}
 
 	async getUser(username) {
-		User.findOne({ username }, (err, user) => {
-			if (err) return console.error(err);
-			console.log(user);
-		})
+		return await User.findOne({ username }).exec();
 	}
 }
 
