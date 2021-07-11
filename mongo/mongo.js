@@ -39,11 +39,14 @@ class Mongo {
 	}
 
 	/**
-	 * String
+	 * // TODO: finish this function
 	 * @param {String} test 
 	 */
 	async updateFollowingStatus(test) {
-
+		// Run getAllFollowers - look through DB to see which users are missing from
+		// the getAllFollowers username array. If the username is not in the DB anymore,
+		// Change the isFollowing status to false.
+		// Log everyone who has had their status change
 	}
 
 	/**
@@ -72,10 +75,10 @@ class Mongo {
 	 * @param {String} username Username of user that will be updated
 	 * @param {Number} pointsDelta Integer value of points given/taken
 	 */
-	async updateUserPoints(username, pointsDelta) {
-		logger('Updating points for '+username)
-		const query = { username: username };
-		const update = { $inc: { points: pointsDelta } };
+	async updateUserPoints(username, points) {
+		logger('Updating points for '+username);
+		const query = { username };
+		const update = { points };
 		const options = { new: true }
 		await User.findOneAndUpdate(query, update, options, (err, user) => {
 			if (err) return console.error(err);
@@ -94,12 +97,25 @@ class Mongo {
 		});
 	}
 
-	async getUser(username) {
-		User.findOne({ username }, (err, user) => {
+	/**
+	 * Toggles user's isFollowing status.
+	 * @param {String} username 
+	 */
+	async updateUserFollowingStatus(username) {
+		const filter = { username };
+		const result = await User.findOne(filter).exec();
+		const update = { isFollowing: !result.isFollowing };
+		await User.updateOne(filter, update, (err, res) => {
 			if (err) return console.error(err);
-			console.log(user);
 		})
 	}
 
+	async getUser(username) {
+		return await User.findOne({ username }).exec();
+	}
 }
-module.exports = new Mongo();
+
+const mongo = new Mongo();
+mongo.connect();
+
+module.exports = mongo;
