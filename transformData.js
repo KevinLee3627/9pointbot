@@ -1,6 +1,3 @@
-const mongoose = require('mongoose');
-const { User } = require('./mongo/schemas.js');
-const logger = require('./lib/logger');
 const { promises: fs } = require('fs');
 const { getAllFollowers } = require('./lib/getFollowers.js');
 require('dotenv').config();
@@ -15,7 +12,7 @@ async function main() {
 		console.log(err);
 	}
 	console.log(currentFollowers);
-	const followersLog = (await fs.readFile(__dirname + '/followers_master.log', 'utf-8')).split('\n');
+	const followersLog = (await fs.readFile(__dirname + '/followers.log', 'utf-8')).split('\n');
 	// console.log(followersLog);
 	const userData = (await fs.readFile(__dirname + '/streampointsdump.csv', 'utf-8')).split('\r\n');
 	// console.log(userData);

@@ -1,7 +1,7 @@
 module.exports = {
 	broadcaster: {
-		name: 'granttank',
-		id: 29921055
+		name: '9hournap',
+		id: 62757494
 	},
 	pointRewards: {
 		follow: 500,
