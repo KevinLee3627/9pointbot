@@ -16,9 +16,6 @@ require('dotenv').config();
 	// Change google-sheets-simple/lib/Sheet.js initialize() to use keyFile
 	// set environment variables to match 9hournap channel, not grganttank
 	// Look through config.js to make sure everything is OK.
-//Test cases
-	//Unfollow or Follow before starting stream/bot: does follow status update?
-	//Follow during stream, chat during stream, test watch points (set to 6 seconds instead of 30 minutes)
 async function main() {
 	logger('Starting bot.');
 	// Connect to DB

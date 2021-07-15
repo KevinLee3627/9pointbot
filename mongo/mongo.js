@@ -52,7 +52,6 @@ class Mongo {
 	async updateFollowingStatus() {
 		// TODO: Relook at the logic for this. What happens if someone follows when stream is offline?
 		// Shouldn't a new User object be made?
-		// Should probably drop the collection and fill it with the data of channel Granttank (only 3-4 followers)
 		const allFollowers = (await getAllFollowers(config.broadcaster.id)).map(follower => follower.user.name);
 		console.log(`Total followers: ${allFollowers.length}`);
 		
