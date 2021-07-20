@@ -7,15 +7,16 @@ const logger = require('./lib/logger.js');
 const mongo = require('./mongo/Mongo.js');
 const initChat = require('./lib/Chat.js');
 require('dotenv').config();
-//in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f 'keyFile' in function 'initialize', make sure path matches /security/sheets_cred.json
-//remember to set the name of the namedRange to 'sheetData' in the google sheet!
 //Remember to:
+	// in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f 'keyFile' in function 'initialize', make sure path matches /security/sheets_cred.json
 	// Make the .env file (use the right one)
 	// Send over /security folder
 	// Set named range in google sheet to 'sheetData'
-	// Change google-sheets-simple/lib/Sheet.js initialize() to use keyFile
 	// set environment variables to match 9hournap channel, not grganttank
 	// Look through config.js to make sure everything is OK.
+	// Turn off QuickEdit mode in terminals for Windows machines
+	// Add streamer's ip to mongodb managemnet
+	// Use ngrok auth token
 async function main() {
 	logger('Starting bot.');
 	// Connect to DB
@@ -28,6 +29,7 @@ async function main() {
 	const listener = new EventSubListener(twitchApiClient, new NgrokAdapter(), process.env.TWITCH_EVENTSUB_LISTENER_SECRET);
 	await listener.listen();
 	// Ensures that we don't hit the subscription cap
+	listener.unlisten();
 	await twitchApiClient.helix.eventSub.deleteAllSubscriptions();
 
 	const userFollowSubscription = await listener.subscribeToChannelFollowEvents(config.broadcaster.id, async e => {

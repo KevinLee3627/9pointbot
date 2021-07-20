@@ -82,7 +82,7 @@ class Mongo {
 		await userInstance.save((err, user) => {
 			if (err && err.code === 11000) logger(`ERROR: ${username} already exists in DB.`);
 			else console.error(err);
-		})
+		});
 	}
 
 	/**
