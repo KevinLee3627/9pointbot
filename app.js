@@ -29,7 +29,6 @@ async function main() {
 	const listener = new EventSubListener(twitchApiClient, new NgrokAdapter(), process.env.TWITCH_EVENTSUB_LISTENER_SECRET);
 	await listener.listen();
 	// Ensures that we don't hit the subscription cap
-	listener.unlisten();
 	await twitchApiClient.helix.eventSub.deleteAllSubscriptions();
 
 	const userFollowSubscription = await listener.subscribeToChannelFollowEvents(config.broadcaster.id, async e => {
