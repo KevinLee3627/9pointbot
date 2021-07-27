@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
 	lastMessageTimestamp: Number,
 	isFollowing: Boolean,
 	hasFollowed: Boolean,
+	poolTopic: String
 })
 
 const User = mongoose.model('user', userSchema);
