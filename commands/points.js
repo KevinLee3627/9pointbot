@@ -8,6 +8,7 @@ module.exports = {
 		if (args.length === 0) {
 			try {
 				const user = await mongo.getUser(msgSender);
+				if (!user.isFollowing) return;
 				chatClient.say(config.broadcaster.name, `${msgSender}, you have ${user.points} points. ${config.sheetLink}`);
 			} catch (err) {
 				console.log(err);

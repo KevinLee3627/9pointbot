@@ -19,6 +19,7 @@ module.exports = {
 
 			const user = await mongo.getUser(msgSender);
 			if (!user) return chatClient.say(broadcaster.name, `User "${msgSender}" does not exist in DB.`);
+			if (!user.isFollowing) return;
 
 			logger(user.username, user?.poolTopicInput, poolTopicInput);
 			await mongo.updateUser(msgSender, 'poolTopic', poolTopicInput);

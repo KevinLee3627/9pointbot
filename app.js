@@ -8,10 +8,10 @@ const mongo = require('./mongo/Mongo.js');
 const initChat = require('./lib/Chat.js');
 require('dotenv').config();
 //Remember to:
-	// in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f 'keyFile' in function 'initialize', make sure path matches /security/sheets_cred.json
 	// Make the .env file (use the right one)
 	// Send over /security folder
-	// Use the 
+	// Use the correct GOOGLE_SHEET_ID env. var.
+	// use the correct DB name 'data' in .env
 	// Set named range in google sheet to 'sheetData'
 	// set environment variables to match 9hournap channel, not grganttank
 	// Look through config.js to make sure everything is OK.

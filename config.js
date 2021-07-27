@@ -9,7 +9,7 @@ module.exports = {
 		watch: 0
 	},
 	watchPointsTime: 1000 * 60 * 30, // Time in ms
-	poolTopics: ['none', 'face', 'cooking', 'choice'],
+	poolTopics: ['none', 'face', 'cooking', 'karaoke', 'hollow'],
 	prefix: '!',
 	sheetLink: 'https://docs.google.com/spreadsheets/d/11X6rQhVxVI_VJLn63VoohkKW_qjvGvdTzv2tVrIpqaI/edit?usp=sharing'
 }
