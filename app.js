@@ -7,15 +7,17 @@ const logger = require('./lib/logger.js');
 const mongo = require('./mongo/Mongo.js');
 const initChat = require('./lib/Chat.js');
 require('dotenv').config();
-//in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f 'keyFile' in function 'initialize', make sure path matches /security/sheets_cred.json
-//remember to set the name of the namedRange to 'sheetData' in the google sheet!
 //Remember to:
+	// in google-sheets-simple, go to /lib/Sheet.js --> ctrl+f 'keyFile' in function 'initialize', make sure path matches /security/sheets_cred.json
 	// Make the .env file (use the right one)
 	// Send over /security folder
+	// Use the 
 	// Set named range in google sheet to 'sheetData'
-	// Change google-sheets-simple/lib/Sheet.js initialize() to use keyFile
 	// set environment variables to match 9hournap channel, not grganttank
 	// Look through config.js to make sure everything is OK.
+	// Turn off QuickEdit mode in terminals for Windows machines
+	// Add streamer's ip to mongodb managemnet
+	// Use ngrok auth token
 async function main() {
 	logger('Starting bot.');
 	// Connect to DB
@@ -38,7 +40,7 @@ async function main() {
 			// User's first time following - write their name to the log
 		  await mongo.createUser(username, true);
 			// Update google sheets!
-			await mongo.updateUserPoints(username, config.pointRewards.follow);
+			await mongo.updateUser(username, 'points', config.pointRewards.follow);
 			chat.say(e.broadcasterName, `${username} can now start earning channel points. +${config.pointRewards.follow} for follow. (!points for more info)`);
 			logger(`Gave ${username} ${config.pointRewards.follow} points for following!`);
 		} else {
