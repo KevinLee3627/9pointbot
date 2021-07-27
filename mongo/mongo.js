@@ -77,7 +77,8 @@ class Mongo {
 			points: config.pointRewards.follow,
 			lastMessageTimestamp: Date.now(),
 			isFollowing,
-			hasFollowed: true
+			hasFollowed: true,
+			poolTopic: ''
 		});
 		await userInstance.save((err, user) => {
 			if (err && err.code === 11000) logger(`ERROR: ${username} already exists in DB.`);
@@ -90,17 +91,16 @@ class Mongo {
 	 * @param {String} username
 	 * @param {Number} points 
 	 */
-	async updateUserPoints(username, points) {
-		logger('Updating points for '+username);
-		const query = { username };
-		const update = { points };
-		const options = { new: true }
-		await User.findOneAndUpdate(query, update, options, (err, user) => {
+	async updateUser(username, field, value) {
+		logger(`Updating ${field} to ${value} for ${username}`);
+		const filter = { username };
+		const update = { [field]: value };
+		await User.updateOne(filter, update, (err, user) => {
 			if (err) return console.error(err);
 		});
 		// Update the google sheets at the same time. Bundling both together in same function
 		// stops me from making dumbass mistakes during development
-		await sheet.updateSheet(username, points);
+		await sheet.updateSheet(username, field, value);
 	}
 
 	/**
@@ -108,6 +108,7 @@ class Mongo {
 	 * This should only be updated when enough time has elapsed to earn more points!
 	 * @param {String} username 
 	 */
+	// TODO: get rid of this, can just use updateUser eventually
 	async updateUserTimestamp(username) {
 		const filter = { username };
 		const update = { lastMessageTimestamp: Date.now() };
@@ -122,6 +123,7 @@ class Mongo {
 	 * TODO: figure out why this function exists
 	 * @param {String} username 
 	 */
+	// TODO: get rid of this, can just use updateUser eventually
 	async updateUserFollowingStatus(username, bool) {
 		const filter = { username };
 		const update = { isFollowing: bool };

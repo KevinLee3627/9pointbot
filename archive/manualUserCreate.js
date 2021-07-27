@@ -1,7 +1,7 @@
 const prompt = require('prompt-sync')({sigint: true});
 
-const mongo = require('./mongo/Mongo');
-const config = require('./config.js');
+const mongo = require('../mongo/Mongo');
+const config = require('../config.js');
 
 
 // await mongo.createUser(username, true);
